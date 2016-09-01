@@ -24,7 +24,6 @@ Q_OBJECT
         const QString& getError(){return _errorMessage;}
 
     public slots:
-        void redirectedSLot(QUrl url);
         void authenticate();
 
     signals:
@@ -43,6 +42,7 @@ Q_OBJECT
         void setState(VkAuthState_t newState);
 
     private slots:
+        void redirectedSLot(QUrl url);
         void errorOccured(QNetworkReply::NetworkError err);
         void postCredentials(QByteArray &data);
         void messageReceived(QNetworkReply* reply);
