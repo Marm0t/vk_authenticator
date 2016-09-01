@@ -3,6 +3,30 @@
 #include <QDialogButtonBox>
 #include <QPushButton>
 #include <QLabel>
+#include <QDebug>
+#include <QNetworkRequest>
+#include <QRegExp>
+#include <QUrlQuery>
+#include <QMessageBox>
+#include <QLineEdit>
+
+class UserPassDialog : public QDialog
+{
+
+public:
+    UserPassDialog(QWidget *parent = 0);
+    ~UserPassDialog();
+
+    const QString& getUsername() ;
+    const QString& getPassword() ;
+
+private:
+    QLineEdit *_usernameLineEdit;
+    QLineEdit *_passLineEdit;
+    QString _username;
+    QString _password;
+};
+
 
 
 VkAuthenticator::VkAuthenticator(QString appId, QString scope)
@@ -12,12 +36,16 @@ VkAuthenticator::VkAuthenticator(QString appId, QString scope)
     connect(&_netMgr, SIGNAL(finished(QNetworkReply*)), this, SLOT(messageReceived(QNetworkReply*)));
 }
 
+void VkAuthenticator::setState(VkAuthState_t newState)
+{
+    qDebug()<< "VkAuthenticator: State changed from "<<_state<<" to "<<newState; _state = newState;
+}
 
 void VkAuthenticator::emitError(QString message)
 {
     setState(Error);
     _errorMessage = message;
-    qDebug() << _errorMessage;
+    qDebug() << "VkAuthenticator: " << _errorMessage;
     emit error(_errorMessage);
 }
 
@@ -45,8 +73,8 @@ void VkAuthenticator::authenticate()
                   "&scope="+_scope+
                   "&response_type=token"+
                   "&v=5.53";
-    qDebug()<<"Sending";
-    qDebug() << url;
+    qDebug()<<"VkAuthenticator: Sending" << url;
+
     QNetworkReply * reply = _netMgr.get(QNetworkRequest(url));
     connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(errorOccured(QNetworkReply::NetworkError)));
     setState(AuthorizeRerquestSent);
@@ -54,7 +82,7 @@ void VkAuthenticator::authenticate()
 
 void VkAuthenticator::errorOccured(QNetworkReply::NetworkError err)
 {
-    qDebug()<<"Error: " << err;
+    qDebug()<<"VkAuthenticator: Error: " << err;
     QNetworkReply *reply = qobject_cast<QNetworkReply*>(this->sender());
     if(reply)
     {
@@ -66,7 +94,7 @@ void VkAuthenticator::errorOccured(QNetworkReply::NetworkError err)
 
 void VkAuthenticator::postCredentials(QByteArray &data)
 {
-    qDebug()<<"POSTCREDENTIALS";
+    //qDebug()<<"POSTCREDENTIALS";
     //retrieve form from data and generate request
     int formBeginPos = data.indexOf("<form");
     int formEndPos = data.indexOf("</form>")+7; // 7 = length of "</form>"
@@ -85,7 +113,7 @@ void VkAuthenticator::postCredentials(QByteArray &data)
     if (urlRe.indexIn(formlist.first()) != -1)
     {
         url = urlRe.cap(1);
-        qDebug()<< "Auth request will be sent to " << url;
+        qDebug()<< "VkAuthenticator: Auth request will be sent to " << url;
     }
     else
     {
@@ -105,7 +133,7 @@ void VkAuthenticator::postCredentials(QByteArray &data)
     }
     postData.removeAllQueryItems("email");
     postData.removeAllQueryItems("pass");
-    qDebug()<< "Post data (before username and password requested)" << postData.toString();
+    qDebug()<< "VkAuthenticator: Post data (before username and password requested)" << postData.toString();
 
     // show username/pass dialog
     UserPassDialog dialog;
@@ -124,7 +152,7 @@ void VkAuthenticator::postCredentials(QByteArray &data)
     QNetworkRequest authReq(url);
     authReq.setAttribute(QNetworkRequest::FollowRedirectsAttribute, true);
     authReq.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
-    qDebug()<<"Sending POST with User credentials";
+    //qDebug()<<"VkAuthenticator: Sending POST with User credentials";
     QNetworkReply *rpl = _netMgr.post(authReq, postData.toString().toUtf8());
     connect(rpl, SIGNAL(redirected(QUrl)), this, SLOT(redirectedSLot(QUrl)));
     setState(CredentialsSent);
@@ -133,17 +161,17 @@ void VkAuthenticator::postCredentials(QByteArray &data)
 void VkAuthenticator::messageReceived(QNetworkReply* reply)
 {
     QByteArray data = reply->readAll();
-    qDebug() << "==> Message received. Code " << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt()
+    qDebug() << "VkAuthenticator: ==> Message received. Code " << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt()
              << "\nURL: " << reply->url().toString()
              << "state: " << _state;
-    qDebug() << QString(data).split("\n");
+    //qDebug() << QString(data).split("\n");
 
     if(reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() == 302)
     {
-        qDebug() << "Redirected: Found.";
+        qDebug() << "VkAuthenticator: Redirected: Found.";
         //qDebug() << "URL of reply             : " <<  reply->url();
         //qDebug() << "URL of request           : " <<  reply->request().url();
-        qDebug() << "URL of redirection target: " <<  reply->attribute(QNetworkRequest::RedirectionTargetAttribute);
+        qDebug() << "VkAuthenticator: URL of redirection target: " <<  reply->attribute(QNetworkRequest::RedirectionTargetAttribute);
         _netMgr.get(QNetworkRequest(reply->attribute(QNetworkRequest::RedirectionTargetAttribute).toString()));
         return;
     }
@@ -162,7 +190,7 @@ void VkAuthenticator::messageReceived(QNetworkReply* reply)
     {
     case NotSet:
         // nothing to do here
-        qDebug() << "Something received while state is NotSet";
+        qDebug() << "VkAuthenticator: Something received while state is NotSet";
         break;
     case AuthorizeRerquestSent:
         postCredentials(data);
@@ -176,14 +204,14 @@ void VkAuthenticator::messageReceived(QNetworkReply* reply)
             {
                 if(reServiceWarning.indexIn(str, 0) != -1)
                 {
-                    qDebug() << "OPENING warning";
+                    //qDebug() << "VkAuthenticator: OPENING warning";
                     QMessageBox::warning(0, "Warning", reServiceWarning.cap(1));
                     postCredentials(data);
                     return;
                 }
                 if(reCaptchaWarning.indexIn(str, 0) != -1)
                 {
-                    qDebug() << "CAPTCHA warning";
+                    //qDebug() << "VkAuthenticator: CAPTCHA warning";
                     QMessageBox::warning(0, "CAPTCHA Warning", "CAPTCHA is requested.\n"
                                                                "But CAPTCHA entering is not implemented\n"
                                                                "Try one more time\n"
@@ -192,7 +220,7 @@ void VkAuthenticator::messageReceived(QNetworkReply* reply)
                     return;
                 }
             }
-            qDebug() << "CREDENTIALS SEEMS TO BE CORRECT";
+            qDebug() << "VkAuthenticator: Credentials seems to be correct";
         }
 
         // check if permissions needed and request them
@@ -226,11 +254,11 @@ void VkAuthenticator::messageReceived(QNetworkReply* reply)
             int agree = QMessageBox::question(0, "Permissions needed",msgToShow, QMessageBox::Yes|QMessageBox::No, QMessageBox::Yes);
             if (agree==QMessageBox::No)
             {
-                qDebug()<< "Not OK to give permissions";
+                qDebug()<< "VkAuthenticator: Not OK to give permissions";
                 emitError("User denied permissions request");
                 return;
             }else{
-                qDebug()<< "Permissions granted. Sending POST to " << permissionsActionUrl;
+                qDebug()<< "VkAuthenticator: Permissions granted. Sending POST to " << permissionsActionUrl;
                 QNetworkRequest aReq;
                 aReq.setUrl(permissionsActionUrl);
                 aReq.setAttribute(QNetworkRequest::FollowRedirectsAttribute, true);
@@ -240,19 +268,20 @@ void VkAuthenticator::messageReceived(QNetworkReply* reply)
         }// end if permisisons needed
         // no break on purpose, because permisisons could be already granted
     case GrantPermissionSent:
-        qDebug() << "CHECK IF WE FIND TOKEN IN URL";
+        //qDebug() << "VkAuthenticator: CHECK IF WE FIND TOKEN IN URL";
         // at this point access token supposed to be in reply's url
         QString aStr = reply->url().toString().replace("#", "?");
         QUrlQuery aQuery(  QUrl(aStr).query() );
         _token = aQuery.queryItemValue("access_token");
         if (!_token.isEmpty())
         {
-            qDebug() << "TOKEN RECIEVED! " << _token;
+            qDebug() << "VkAuthenticator: TOKEN RECIEVED! " << _token;
             setState(TokenReceived);
+            emit tokenReceived(_token);
         }
         else
         {
-            qDebug() << "Token not found";
+            qDebug() << "VkAuthenticator: Token not found";
         }
         break;
     }
@@ -262,6 +291,7 @@ void VkAuthenticator::messageReceived(QNetworkReply* reply)
 UserPassDialog::UserPassDialog(QWidget *parent)
     :QDialog(parent)
 {
+    setWindowFlags( Qt::Tool );
     QLabel* _usernameLabel = new QLabel("Email/phone");
     _usernameLineEdit = new QLineEdit();
     QHBoxLayout *hlayU = new QHBoxLayout;
