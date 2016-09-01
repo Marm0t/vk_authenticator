@@ -5,14 +5,6 @@
 #include <QLabel>
 
 
-/**
- * TODO:
- *  + case when username/password are not correct
- *  - case when user declined giving permissions to the app
- *  - case when user after unseccessfull attempt wants to re-initiate authentication
-*/
-
-
 VkAuthenticator::VkAuthenticator(QString appId, QString scope)
         :_appId(appId), _scope(scope), _state(NotSet)
 {
