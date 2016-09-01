@@ -292,23 +292,23 @@ UserPassDialog::UserPassDialog(QWidget *parent)
     :QDialog(parent)
 {
     setWindowFlags( Qt::Tool );
-    QLabel* _usernameLabel = new QLabel("Email/phone");
+    this->setWindowTitle("Gain Access to VK");
+    QLabel* _justLabel = new QLabel("You should log in to VK to proceed.");
+    QLabel* _usernameLabel = new QLabel("Phone or email:");
     _usernameLineEdit = new QLineEdit();
-    QHBoxLayout *hlayU = new QHBoxLayout;
-    hlayU->addWidget(_usernameLabel);
-    hlayU->addWidget(_usernameLineEdit);
 
-    QLabel* _passwordLabel = new QLabel("   Password");
+    QLabel* _passwordLabel = new QLabel("Password:");
     _passLineEdit = new QLineEdit();
     _passLineEdit->setEchoMode(QLineEdit::Password);
     _passLineEdit->setInputMethodHints(Qt::ImhHiddenText| Qt::ImhNoPredictiveText|Qt::ImhNoAutoUppercase);
-    QHBoxLayout *hlayP = new QHBoxLayout;
-    hlayP->addWidget(_passwordLabel);
-    hlayP->addWidget(_passLineEdit);
 
     QPushButton *loginButton = new QPushButton(tr("Login"));
-    loginButton->setDefault(true);
     QPushButton *cancelButton = new QPushButton(tr("Cancel"));
+    loginButton->setDefault(true);
+    loginButton->setAutoDefault(true);
+    cancelButton->setDefault(false);
+    cancelButton->setAutoDefault(false);
+
     QDialogButtonBox *buttonBox = new QDialogButtonBox(Qt::Horizontal);
     buttonBox->addButton(loginButton, QDialogButtonBox::AcceptRole);
     buttonBox->addButton(cancelButton, QDialogButtonBox::RejectRole);
@@ -316,8 +316,12 @@ UserPassDialog::UserPassDialog(QWidget *parent)
     connect(buttonBox, SIGNAL(rejected()), this, SLOT(reject()));
 
     QVBoxLayout *vlay = new QVBoxLayout;
-    vlay->addLayout(hlayU);
-    vlay->addLayout(hlayP);
+    vlay->addWidget(_justLabel);
+    vlay->addSpacing(15);
+    vlay->addWidget(_usernameLabel);
+    vlay->addWidget(_usernameLineEdit);
+    vlay->addWidget(_passwordLabel);
+    vlay->addWidget(_passLineEdit);
     vlay->addWidget(buttonBox);
 
     this->setLayout(vlay);
